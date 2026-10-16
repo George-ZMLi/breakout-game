@@ -37,7 +37,7 @@
   #energyfill { height: 100%; width: 0; background: linear-gradient(90deg,#ffd166,#ff6b6b); transition: width .18s; }
   #event { width: var(--gw, 880px); max-width: 96vw; min-height: 22px; margin-bottom: 6px; font-size: 13px; color: #ffd166; letter-spacing: 1px; }
   #wrap { position: relative; width: var(--gw, 880px); max-width: 96vw; touch-action: none; }
-  canvas { display: block; width: 100%; height: auto; aspect-ratio: 880 / 580; background: #10142a;
+  canvas { display: block; width: 100%; height: auto; aspect-ratio: var(--ar, 880 / 580); background: #10142a;
            border-radius: 12px; box-shadow: 0 24px 70px rgba(0,0,0,.65), 0 0 0 1px rgba(255,255,255,.06);
            cursor: none; touch-action: none; }
   #powerups { width: var(--gw, 880px); max-width: 96vw; min-height: 26px; display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
@@ -65,7 +65,15 @@
   #touch button[aria-pressed="true"] { background: #3d4a75; color: #fff; }
   #tip .m { display: none; }
   @media (pointer: coarse), (max-width: 720px) {
-    #touch { display: flex; }
+    #touch { display: flex; gap: 6px; }
+    h1 { margin-bottom: 4px; }
+    #hud { margin-bottom: 4px; gap: 8px; }
+    .bar { margin-bottom: 4px; }
+    #event { min-height: 18px; margin-bottom: 4px; font-size: 12px; }
+    #powerups { margin-top: 6px; min-height: 22px; }
+    #tip { margin-top: 6px; font-size: 11.5px; }
+    #touch button { flex: 1 1 76px; min-height: 52px; padding: 13px 8px; font-size: 15px; }
+    #touch button[data-act="left"], #touch button[data-act="right"] { flex: 0 0 22%; background: #35406a; }
     #legend { display: none; }
     #tip .d { display: none; } #tip .m { display: inline; }
     h1 { font-size: 15px; letter-spacing: 3px; }
@@ -172,7 +180,10 @@
   // ================= 画布 / 高分屏 / 视口自适应 =================
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d', { alpha: false });
-  const W = 880, H = 580;
+  // 逻辑画布按视口方向选择：竖屏（手机 / 平板竖放）用 600×660，横屏与桌面保持 880×580。
+  // 600×660 在手机上能铺满屏幕宽度并明显加高画面，砖块 / 挡板 / 小球的实际尺寸都更大，操作区更宽松。
+  const PORTRAIT = window.innerHeight > window.innerWidth;
+  const W = PORTRAIT ? 600 : 880, H = PORTRAIT ? 660 : 580;
   const wrapEl = document.getElementById('wrap');
 
   // 设备分级：触屏 / 核心数少的设备走轻量渲染（关掉 shadowBlur、少粒子）
@@ -226,12 +237,16 @@
     const r = wrapEl.getBoundingClientRect();
     const topUsed = r.top + (window.scrollY || 0);          // 画布上方已占用的空间
     const availH = Math.max(180, vh - topUsed - belowHeight());
-    const availW = Math.min(W, vw * 0.96, vw - 16);
-    // contain：宽度取「可用宽度」与「可用高度 × 画面比例」的较小值 → 手机横屏也一屏放得下
-    const w = Math.max(240, Math.min(W, availW, availH * W / H));
+    const availW = Math.min(vw * 0.96, vw - 16);
+    // contain：宽度取「可用宽度」与「可用高度 × 画面比例」的较小值。
+    // 竖屏不再用 W 封顶：逻辑画布只有 600 宽，放大到屏幕宽度后画面整体明显变大；
+    // 横屏 / 桌面仍按 880 封顶，保持原来的桌面观感。
+    const wCap = PORTRAIT ? Infinity : W;
+    const w = Math.max(240, Math.min(wCap, availW, availH * W / H));
     const gw = Math.round(w) + 'px';
     wrapEl.style.width = gw;
     document.documentElement.style.setProperty('--gw', gw);   // HUD / 进度条 / 事件行 / 按钮跟画布同宽
+    document.documentElement.style.setProperty('--ar', W + ' / ' + H);
     cssW = w; cssH = w * H / W;
     canvas.style.height = Math.round(cssH) + 'px';          // 兼容不认 aspect-ratio 的旧浏览器
     dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -322,7 +337,8 @@
   const ST={READY:0,PLAY:1,PAUSE:2,OVER:3,CLEAR:4};
   let state=ST.READY, endless=false;
 
-  const paddle={base:118,w:118,h:14,x:0,y:H-36,speed:720};
+  const PADDLE_BASE=W<720?84:118;   // 挡板基准宽度随画布宽度缩放
+  const paddle={base:PADDLE_BASE,w:PADDLE_BASE,h:14,x:0,y:H-36,speed:720};
   const G={balls:[],bricks:[],drops:[],particles:[],lasers:[],floaters:[],enemy:[],meteors:[]};
   let score=0,lives=3,level=1,combo=0,comboTimer=0,energy=0,maxCombo=0,ultCount=0,missed=false;
   let shake=0,flash=0,goldMode=0,totalBricks=1,boss=null,time=0,meteorTimer=0;
@@ -338,7 +354,8 @@
   // ================= 关卡 =================
   function buildLevel(lv){
     G.bricks=[]; G.enemy=[]; G.meteors=[]; boss=null;
-    const cols=12,bw=(W-44)/cols,bh=26,gap=4,rows=Math.min(4+Math.floor(lv*0.85),9);
+    const narrow=W<720, cols=narrow?8:12, bw=(W-(narrow?16:22)*2)/cols, bh=26, gap=4,
+      rows=Math.min(narrow?5+Math.floor(lv*0.9):4+Math.floor(lv*0.85),10);
     if(isBoss()){ buildBoss(cols,bw,bh,gap); totalBricks=1; return; }
     for(let r=0;r<rows;r++) for(let c=0;c<cols;c++){
       let hp=1,type='normal';
@@ -352,7 +369,7 @@
       if(lv>=9&&(r*cols+c)%17===8){hp=2;type='magnet';}
       if(lv>=11&&(r*cols+c)%19===6){hp=2;type='regen';}
       if((goldMode>0||frenzy)&&Math.random()<(goldMode>1?0.4:0.2)){hp=1;type='gold';}
-      addBrick(22+c*bw+gap/2,70+r*(bh+gap),bw-gap,bh,hp,type,COLORS[(r+c)%COLORS.length]);
+      addBrick((W<720?16:22)+c*bw+gap/2,(W<720?56:70)+r*(bh+gap),bw-gap,bh,hp,type,COLORS[(r+c)%COLORS.length]);
     }
     totalBricks=countLive();
   }
@@ -360,11 +377,12 @@
     G.bricks.push({x,y,w,h,hp,maxHp:hp===Infinity?3:hp,type,color,phase:Math.random()*6.28,initX:x,initY:y});
   }
   function buildBoss(cols,bw,bh,gap){
-    const cw=180,ch=54,cx=W/2-cw/2,cy=92,hp=24+level*4;
+    const cw=Math.min(180,Math.round(W*0.3)),ch=54,cx=W/2-cw/2,cy=92,hp=24+level*4;   // 窄画布下 Boss 不超出画面
     boss={x:cx,y:cy,w:cw,h:ch,hp,maxHp:hp,dir:1,speed:70+level*3,flash:0,shoot:1.5};
     addBrick(cx,cy,cw,ch,hp,'boss','#ff3b6b');
-    for(let i=0;i<cols;i++) addBrick(22+i*bw+gap/2,164,bw-gap,bh,i%3===0?2:1,i%3===0?'tough':'normal',COLORS[i%COLORS.length]);
-    for(let i=0;i<cols;i+=2) addBrick(22+i*bw+gap/2,196,bw-gap,bh,2,'weak','#ff8fd0');
+    const bx=W<720?16:22;
+    for(let i=0;i<cols;i++) addBrick(bx+i*bw+gap/2,164,bw-gap,bh,i%3===0?2:1,i%3===0?'tough':'normal',COLORS[i%COLORS.length]);
+    for(let i=0;i<cols;i+=2) addBrick(bx+i*bw+gap/2,196,bw-gap,bh,2,'weak','#ff8fd0');
     totalBricks=1;
   }
   const countLive=()=>{ let n=0; for(const b of G.bricks){ const t=b.type; if(t!=='steel'&&t!=='portal'&&t!=='spring') n++; } return n; };
@@ -373,7 +391,8 @@
   const GRAV=40;              // 原 140：上升 500px 要掉 170px/s 竖直速度，球经常够不到砖
   const MAX_ANGLE=1.08;       // 62°：出射角再大也不至于近乎水平
   const BRICK_BOUNCE=1.08;    // 砖块反弹略微补能，抵消重力造成的衰减
-  const newBall=(x,y,vx,vy)=>({x,y,r:8,vx,vy,stuck:false,fire:0,bomb:0,trail:[],portalCd:0});
+  const BALL_R = W<720 ? 10 : 8;   // 小球半径随画布走，小屏上更容易看清
+  const newBall=(x,y,vx,vy)=>({x,y,r:BALL_R,vx,vy,stuck:false,fire:0,bomb:0,trail:[],portalCd:0});
   // 反弹兜底：速度掉到下限以下就补能；竖直分量过小说明轨迹近乎水平，抬一点角度
   function keepBallAlive(b){
     const minSp=minLaunchSpeed();
