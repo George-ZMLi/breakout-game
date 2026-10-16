@@ -180,10 +180,11 @@
   // ================= 画布 / 高分屏 / 视口自适应 =================
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d', { alpha: false });
-  // 逻辑画布按视口方向选择：竖屏（手机 / 平板竖放）用 600×660，横屏与桌面保持 880×580。
-  // 600×660 在手机上能铺满屏幕宽度并明显加高画面，砖块 / 挡板 / 小球的实际尺寸都更大，操作区更宽松。
+  // 逻辑画布按视口方向选择：竖屏（手机 / 平板竖放）用 600×640，横屏与桌面保持 880×580。
+  // 600×640 是扫描 6 款手机 + 2 款平板得到的比例：画布面积约为旧版（固定 880×580）的 1.2~1.6 倍，
+  // 砖块 / 挡板 / 小球在屏幕上的实际尺寸同步变大，竖屏操作区明显更宽松。
   const PORTRAIT = window.innerHeight > window.innerWidth;
-  const W = PORTRAIT ? 600 : 880, H = PORTRAIT ? 660 : 580;
+  const W = PORTRAIT ? 600 : 880, H = PORTRAIT ? 640 : 580;
   const wrapEl = document.getElementById('wrap');
 
   // 设备分级：触屏 / 核心数少的设备走轻量渲染（关掉 shadowBlur、少粒子）
@@ -337,7 +338,7 @@
   const ST={READY:0,PLAY:1,PAUSE:2,OVER:3,CLEAR:4};
   let state=ST.READY, endless=false;
 
-  const PADDLE_BASE=W<720?84:118;   // 挡板基准宽度随画布宽度缩放
+  const PADDLE_BASE=W<720?92:118;   // 挡板基准宽度随画布走：竖屏 92/600=15.3%，手指拖动更容错
   const paddle={base:PADDLE_BASE,w:PADDLE_BASE,h:14,x:0,y:H-36,speed:720};
   const G={balls:[],bricks:[],drops:[],particles:[],lasers:[],floaters:[],enemy:[],meteors:[]};
   let score=0,lives=3,level=1,combo=0,comboTimer=0,energy=0,maxCombo=0,ultCount=0,missed=false;
@@ -391,7 +392,7 @@
   const GRAV=40;              // 原 140：上升 500px 要掉 170px/s 竖直速度，球经常够不到砖
   const MAX_ANGLE=1.08;       // 62°：出射角再大也不至于近乎水平
   const BRICK_BOUNCE=1.08;    // 砖块反弹略微补能，抵消重力造成的衰减
-  const BALL_R = W<720 ? 10 : 8;   // 小球半径随画布走，小屏上更容易看清
+  const BALL_R = W<720 ? 11 : 8;    // 小球半径随画布走，小屏上更容易看清
   const newBall=(x,y,vx,vy)=>({x,y,r:BALL_R,vx,vy,stuck:false,fire:0,bomb:0,trail:[],portalCd:0});
   // 反弹兜底：速度掉到下限以下就补能；竖直分量过小说明轨迹近乎水平，抬一点角度
   function keepBallAlive(b){
