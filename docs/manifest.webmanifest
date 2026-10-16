@@ -1,0 +1,13 @@
+{
+  "name": "打砖块 · 传说版",
+  "short_name": "打砖块",
+  "description": "道具合成、Boss 战、随机事件的 HTML5 打砖块游戏",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#070a14",
+  "theme_color": "#070a14",
+  "icons": [
+    { "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
