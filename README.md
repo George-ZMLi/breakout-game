@@ -2,7 +2,7 @@
 
 纯 HTML5 Canvas 打砖块游戏，单文件、零依赖、零构建，桌面与手机都能玩。
 
-🎮 **[在线游玩](https://YOUR_USERNAME.github.io/breakout-game/)**
+🎮 **[在线游玩](https://george-zmli.github.io/breakout-game/)**
 
 ## 玩法
 
